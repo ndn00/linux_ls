@@ -10,21 +10,21 @@ bool l_flag = false;
 bool R_flag = false;
 int f_idx = 1;
 
-void handle_inputs(int argc, char **argv) {
-  for (int idx = 1; idx < argc; ++idx) {
-    if (argv[idx][0] == '-') {  // handle flags
-      for (int idx2 = 1; idx2 < strlen(argv[idx]); ++idx2) {
-        if (argv[idx][idx2] == 'i') {
+void handle_flags(int argc, char **argv) {
+  for (f_idx = 1; f_idx < argc; ++f_idx) {
+    if (argv[f_idx][0] == '-') {  // handle flags
+      for (int idx2 = 1; idx2 < strlen(argv[f_idx]); ++idx2) {
+        if (argv[f_idx][idx2] == 'i') {
           i_flag = true;
         }
-        if (argv[idx][idx2] == 'l') {
+        if (argv[f_idx][idx2] == 'l') {
           l_flag = true;
         }
-        if (argv[idx][idx2] == 'R') {
+        if (argv[f_idx][idx2] == 'R') {
           R_flag = true;
         }
       }
-    } else {  // mark begining index of file/directory
+    } else {  // f_idx mark begining index of files/directories
       return;
     }
   }
