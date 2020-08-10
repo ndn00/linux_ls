@@ -243,13 +243,15 @@ int main(int argc, char **argv) {
   }
   int *dir = calloc(cnt_dir, sizeof(int));
   int *entry = calloc(cnt_entry, sizeof(int));
-  cnt_dir = 0;
-  cnt_entry = 0;
-  for (int j = 0; j < argc; ++j) {
-      get_lstat(argv[j], &buf);
-      if (S_ISDIR(buf.st_mode) || (S_ISLNK(buf.st_mode) && !l_flag)) dir[cnt_dir++] = j;
-      else entry[cnt_entry++] = j; 
+  int i = 0; 
+  int j = 0;
+  for (int k = 0; j < argc; ++k) {
+      get_lstat(argv[k], &buf);
+      if (S_ISDIR(buf.st_mode) || (S_ISLNK(buf.st_mode) && !l_flag)) dir[i++] = k;
+      else entry[j++] = k; 
   }
+  sort_input(argv, cnt_dir, dir);
+  sort_input(argv, cnt_entry, entry);
 
   return 0;
 }
