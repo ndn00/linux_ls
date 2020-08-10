@@ -25,8 +25,16 @@ int f_idx = 1;
 bool multiple_inputs = false;
 bool first = true;
 int level = 0;
+typedef struct {
+  int ino_len;
+  int hlink_len;
+  int uname_len;
+  int gname_len;
+  int size_len;
+  bool hasSpcPath;
+} PrintProfile;
 
-void printPath(char *pathname) {
+bool hasSpcChr(char *pathname) {
   bool spc_flag = false;
   char spcchr[7] = {' ', '!', '$', '^', '&', '(', ')'};
   for (int idx = 0; idx < 7; ++idx) {
@@ -34,33 +42,40 @@ void printPath(char *pathname) {
       spc_flag = true;
     }
   }
+  return spc_flag;
+}
+
+void printPath(char *pathname, bool beginSpc) {
+  bool spc_flag = hasSpcChr(pathname);
   if (spc_flag) {
     printf("\'");
+  } else if (beginSpc) {
+    printf(" ");
   }
   printf("%s", pathname);
   if (spc_flag) {
     printf("\'");
+  } else if (beginSpc) {
+    printf(" ");
   }
 }
 
-void getAndPrintGroup(const gid_t grpNum) {
-  struct group *grp = getgrgid(grpNum);
+char *get_gname(const gid_t gid) {
+  struct group *grp = getgrgid(gid);
 
   if (grp) {
-    printf("%s\t", grp->gr_name);
+    return grp->gr_name;
   } else {
-    printf("No group name for %u found\n", grpNum);
+    return "!not found!";
   }
 }
-
-void getAndPrintUserName(const uid_t uid) {
+char *get_uname(const uid_t uid) {
   struct passwd *pw = getpwuid(uid);
 
   if (pw) {
-    printf("%s\t", pw->pw_name);
+    return pw->pw_name;
   } else {
-    perror("Hmm not found???");
-    printf("No name found for %u\n", uid);
+    return "!not found!";
   }
 }
 
@@ -89,35 +104,37 @@ void getAndPrintFileMode(const mode_t mode) {
   printf(mode & S_IWOTH ? "w" : "-");  // Write
   printf(mode & S_IXOTH ? "x" : "-");  // Execute
 
-  printf("\t");
+  printf(" ");
 }
 
 void getAndPrintTime(time_t time) {
   char dateAndTime[SIZE_OF_DATE_AND_TIME];
   strftime(dateAndTime, sizeof(dateAndTime), "%b %e %H:%M", localtime(&time));
-  printf("%s\t", dateAndTime);
+  printf("%s ", dateAndTime);
 }
 
-void printEntry(stat_t stats, char *dirname, char *pathname) {
-  ino_t index = stats.st_ino;
-  mode_t mode = stats.st_mode;
-  nlink_t hardLinksNum = stats.st_nlink;
-  uid_t uid = stats.st_uid;
-  gid_t groupNum = stats.st_gid;
-  off_t size = stats.st_size;
-  time_t time = stats.st_mtime;
-  if (i_flag) printf("%ld\t", index);
+void printEntry(stat_t *stats, char *dirname, char *pathname) {
+  // ino_t index = stats.st_ino;
+  // mode_t mode = stats.st_mode;
+  // nlink_t hardLinksNum = stats.st_nlink;
+  // uid_t uid = stats.st_uid;
+  // gid_t gid = stats.st_gid;
+  // off_t size = stats.st_size;
+  // time_t time = stats.st_mtime;
+  if (i_flag) printf("%ld ", stats->st_ino);
   if (l_flag) {
-    getAndPrintFileMode(mode);
-    printf("%ld\t", hardLinksNum);
-    getAndPrintUserName(uid);
-    getAndPrintGroup(groupNum);
-    printf("%ld\t", size);
-    getAndPrintTime(time);
+    getAndPrintFileMode(stats->st_mode);
+    printf("%ld ", stats->st_nlink);
+    printf("%s ", get_uname(stats->st_uid));
+    printf("%s ", get_gname(stats->st_gid));
+    printf("%ld ", stats->st_size);
+    getAndPrintTime(stats->st_mtime);
   }
   // printf("%s", dirname);
-  printPath(dirname);
-  if (l_flag && S_ISLNK(stats.st_mode)) {
+  printPath(dirname, false);
+
+  // handle special char
+  if (l_flag && S_ISLNK(stats->st_mode)) {
     char dest_buf[1000];
     ssize_t len = readlink(pathname, dest_buf, sizeof(dest_buf) - 1);
 
@@ -127,7 +144,7 @@ void printEntry(stat_t stats, char *dirname, char *pathname) {
       /* handle error condition */
     }
     printf(" -> ");
-    printPath(dest_buf);
+    printPath(dest_buf, false);
   }
   printf("\n");
 }
@@ -202,7 +219,7 @@ void printDir(char *pathname) {
     // printf("\n");
 
     // printf("%s:\n", pathname);
-    printPath(pathname);
+    printPath(pathname, false);
     printf(":\n");
   }
   level++;
@@ -213,7 +230,7 @@ void printDir(char *pathname) {
         nameList[idx]->d_name[0] != '.') {
       get_path(pathname, nameList[idx]->d_name, path_buf);
       get_lstat(path_buf, &buf);
-      printEntry(buf, nameList[idx]->d_name, path_buf);
+      printEntry(&buf, nameList[idx]->d_name, path_buf);
     }
   }
   for (int idx = 0; idx < entries; ++idx) {
@@ -239,7 +256,7 @@ void handle_input(char *pathname) {
   if (S_ISDIR(buf.st_mode)) {
     printDir(pathname);
   } else
-    printEntry(buf, dirname_buf, pathname);
+    printEntry(&buf, dirname_buf, pathname);
   first = false;
 }
 
@@ -282,7 +299,7 @@ int main(int argc, char **argv) {
   sort_input(argv, cnt_entry, entry);
   for (int idx = 0; idx < cnt_entry; ++idx) {
     get_lstat(argv[entry[idx]], &buf);
-    printEntry(buf, argv[entry[idx]], argv[entry[idx]]);
+    printEntry(&buf, argv[entry[idx]], argv[entry[idx]]);
     first = false;
   }
   for (int idx = 0; idx < cnt_dir; ++idx) {
