@@ -178,7 +178,7 @@ void handle_flags(int argc, char **argv) {
 bool get_stat(char *pathname, stat_t *pbuf) {
   if (stat(pathname, pbuf) != 0) {
     // handle error;
-    printf("myls: cannot access \'%s\': No such file or directory\n", pathname);
+ //   printf("myls: cannot access \'%s\': No such file or directory\n", pathname);
     pbuf = NULL;
     return false;
   }
@@ -322,7 +322,7 @@ int main(int argc, char **argv) {
       else if (S_ISREG(buf.st_mode))
         ++cnt_entry;
       else if (S_ISLNK(buf.st_mode))
-        l_flag ? ++cnt_entry : ++cnt_dir;
+        (!l_flag && get_stat(argv[idx], &buf) && S_ISDIR(buf.st_mode)) ? ++cnt_dir : ++cnt_entry;
     }
   }
 
@@ -361,6 +361,11 @@ int main(int argc, char **argv) {
   for (int idx = 0; idx < cnt_dir; ++idx) {
     if (get_stat(argv[dir[idx]], &buf))
       printDir(argv[dir[idx]]);
+    else {
+      get_lstat(argv[dir[idx]], &buf);
+      printEntry(&buf, argv[entry[idx]], argv[entry[idx]], &pp);
+    }
+    
   }
   free(dir);
 
