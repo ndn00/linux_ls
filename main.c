@@ -64,6 +64,8 @@ void printPath(char *pathname, bool beginSpc) {
   printf("%s", pathname);
   if (spc_flag) {
     printf("\'");
+  } else if (beginSpc) {
+    printf(" ");
   }
 }
 
@@ -178,8 +180,7 @@ void handle_flags(int argc, char **argv) {
 bool get_stat(char *pathname, stat_t *pbuf) {
   if (stat(pathname, pbuf) != 0) {
     // handle error;
-    //   printf("myls: cannot access \'%s\': No such file or directory\n",
-    //   pathname);
+ //   printf("myls: cannot access \'%s\': No such file or directory\n", pathname);
     pbuf = NULL;
     return false;
   }
@@ -188,8 +189,7 @@ bool get_stat(char *pathname, stat_t *pbuf) {
 bool get_lstat(char *pathname, stat_t *pbuf) {
   if (lstat(pathname, pbuf) != 0) {
     // handle error;
-    //  printf("myls: cannot access \'%s\': No such file or directory\n",
-    //  pathname);
+  //  printf("myls: cannot access \'%s\': No such file or directory\n", pathname);
     pbuf = NULL;
     return false;
   }
@@ -324,10 +324,8 @@ int main(int argc, char **argv) {
       else if (S_ISREG(buf.st_mode))
         ++cnt_entry;
       else if (S_ISLNK(buf.st_mode))
-        (!l_flag && get_stat(argv[idx], &buf) && S_ISDIR(buf.st_mode))
-            ? ++cnt_dir
-            : ++cnt_entry;
-    }
+        (!l_flag && get_stat(argv[idx], &buf) && S_ISDIR(buf.st_mode)) ? ++cnt_dir : ++cnt_entry;
+    } else printf("myls: cannot access \'%s\': No such file or directory\n", argv[idx]);
   }
 
   int *dir = calloc(cnt_dir, sizeof(int));
@@ -340,9 +338,7 @@ int main(int argc, char **argv) {
       else if (S_ISREG(buf.st_mode))
         entry[cnt_entry++] = idx;
       else if (S_ISLNK(buf.st_mode))
-        (!l_flag && get_stat(argv[idx], &buf) && S_ISDIR(buf.st_mode))
-            ? (dir[cnt_dir++] = idx)
-            : (entry[cnt_entry++] = idx);
+        (!l_flag && get_stat(argv[idx], &buf) && S_ISDIR(buf.st_mode)) ? (dir[cnt_dir++] = idx) : (entry[cnt_entry++] = idx);
     }
   }
   // for (int k = f_idx, cnt_dir = 0, cnt_entry = 0; k < argc; ++k) {
@@ -378,10 +374,6 @@ int main(int argc, char **argv) {
   for (int idx = 0; idx < cnt_dir; ++idx) {
     if (get_stat(argv[dir[idx]], &buf))
       printDir(argv[dir[idx]]);
-    else {
-      get_lstat(argv[dir[idx]], &buf);
-      printEntry(&buf, argv[entry[idx]], argv[entry[idx]], &pp);
-    }
   }
   free(dir);
 
