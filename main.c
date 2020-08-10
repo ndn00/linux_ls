@@ -158,12 +158,14 @@ void handle_flags(int argc, char **argv) {
       for (int idx2 = 1; idx2 < strlen(argv[f_idx]); ++idx2) {
         if (argv[f_idx][idx2] == 'i') {
           i_flag = true;
-        }
-        if (argv[f_idx][idx2] == 'l') {
+        } else if (argv[f_idx][idx2] == 'l') {
           l_flag = true;
-        }
-        if (argv[f_idx][idx2] == 'R') {
+        } else if (argv[f_idx][idx2] == 'R') {
           R_flag = true;
+        } else {
+          printf("myls: invalid option -- \'%c\'\n", argv[f_idx][idx2]);
+          printf("Try other options!\n");
+          exit(-1);
         }
       }
     } else {  // f_idx mark begining index of files/directories
@@ -323,7 +325,7 @@ int main(int argc, char **argv) {
         ++cnt_entry;
       else if (S_ISLNK(buf.st_mode))
         (!l_flag && get_stat(argv[idx], &buf) && S_ISDIR(buf.st_mode)) ? ++cnt_dir : ++cnt_entry;
-    }
+    } else printf("myls: cannot access \'%s\': No such file or directory\n", argv[idx]);
   }
 
   int *dir = calloc(cnt_dir, sizeof(int));
@@ -372,11 +374,6 @@ int main(int argc, char **argv) {
   for (int idx = 0; idx < cnt_dir; ++idx) {
     if (get_stat(argv[dir[idx]], &buf))
       printDir(argv[dir[idx]]);
-    else {
-      get_lstat(argv[dir[idx]], &buf);
-      printEntry(&buf, argv[entry[idx]], argv[entry[idx]], &pp);
-    }
-    
   }
   free(dir);
 
