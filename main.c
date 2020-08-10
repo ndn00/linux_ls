@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
 
 #define SIZE_OF_DATE_AND_TIME 16
 
@@ -80,7 +81,7 @@ void getAndPrintTime(time_t time) {
   printf("%s\t", dateAndTime);
 }
 
-void printEntry(struct stat stats, char *fileName) {
+void printEntry(stat_t stats, char *dirname, char *pathname) {
   ino_t index = stats.st_ino;
   mode_t mode = stats.st_mode;
   nlink_t hardLinksNum = stats.st_nlink;
@@ -97,7 +98,19 @@ void printEntry(struct stat stats, char *fileName) {
     printf("%ld\t", size);
     getAndPrintTime(time);
   }
-  printf("%s\n", fileName);
+  printf("%s", dirname);
+  if (l_flag && S_ISLNK(stats.st_mode)) {
+    char dest_buf[1000];
+    ssize_t len = readlink(pathname, dest_buf, sizeof(dest_buf) - 1);
+
+    if (len != -1) {
+      dest_buf[len] = '\0';
+    } else {
+      /* handle error condition */
+    }
+    printf(" -> %s", dest_buf);
+  }
+  printf("\n");
 }
 
 void handle_flags(int argc, char **argv) {
@@ -176,7 +189,7 @@ void printDir(char *pathname) {
         strcmp(nameList[idx]->d_name, "..") != 0) {
       get_path(pathname, nameList[idx]->d_name, path_buf);
       get_lstat(path_buf, &buf);
-      printEntry(buf, nameList[idx]->d_name);
+      printEntry(buf, nameList[idx]->d_name, path_buf);
     }
   }
   for (int idx = 0; idx < entries; ++idx) {
@@ -201,7 +214,7 @@ void handle_input(char *pathname) {
   if (S_ISDIR(buf.st_mode)) {
     printDir(pathname);
   } else
-    printEntry(buf, dirname_buf);
+    printEntry(buf, dirname_buf, pathname);
   first = false;
 }
 
