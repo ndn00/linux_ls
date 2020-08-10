@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #define SIZE_OF_DATE_AND_TIME 16
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 typedef struct dirent dirent_t;
 typedef struct stat stat_t;
@@ -45,6 +46,14 @@ bool hasSpcChr(char *pathname) {
   return spc_flag;
 }
 
+int get_intlen(int i) {
+  int count = 0;
+  while (i != 0) {
+    i /= 10;
+    ++count;
+  }
+  return count;
+}
 void printPath(char *pathname, bool beginSpc) {
   bool spc_flag = hasSpcChr(pathname);
   if (spc_flag) {
@@ -113,25 +122,19 @@ void getAndPrintTime(time_t time) {
   printf("%s ", dateAndTime);
 }
 
-void printEntry(stat_t *stats, char *dirname, char *pathname) {
-  // ino_t index = stats.st_ino;
-  // mode_t mode = stats.st_mode;
-  // nlink_t hardLinksNum = stats.st_nlink;
-  // uid_t uid = stats.st_uid;
-  // gid_t gid = stats.st_gid;
-  // off_t size = stats.st_size;
-  // time_t time = stats.st_mtime;
-  if (i_flag) printf("%ld ", stats->st_ino);
+void printEntry(stat_t *stats, char *dirname, char *pathname,
+                PrintProfile *ppp) {
+  if (i_flag) printf("%*ld ", ppp->ino_len, stats->st_ino);
   if (l_flag) {
     getAndPrintFileMode(stats->st_mode);
-    printf("%ld ", stats->st_nlink);
-    printf("%s ", get_uname(stats->st_uid));
-    printf("%s ", get_gname(stats->st_gid));
-    printf("%ld ", stats->st_size);
+    printf("%*ld ", ppp->hlink_len, stats->st_nlink);
+    printf("%*s ", ppp->uname_len, get_uname(stats->st_uid));
+    printf("%*s ", ppp->gname_len, get_gname(stats->st_gid));
+    printf("%*ld ", ppp->size_len, stats->st_size);
     getAndPrintTime(stats->st_mtime);
   }
   // printf("%s", dirname);
-  printPath(dirname, false);
+  printPath(dirname, ppp->hasSpcPath);
 
   // handle special char
   if (l_flag && S_ISLNK(stats->st_mode)) {
@@ -209,6 +212,26 @@ void printDir(char *pathname) {
   int entries;
   entries = scandir(pathname, &nameList, NULL, alphasort);
 
+  PrintProfile pp;
+  memset(&pp, 0, sizeof(pp));
+
+  // init pp
+  for (int idx = 0; idx < entries; ++idx) {
+    if (strcmp(nameList[idx]->d_name, ".") != 0 &&
+        strcmp(nameList[idx]->d_name, "..") != 0 &&
+        nameList[idx]->d_name[0] != '.') {
+      get_path(pathname, nameList[idx]->d_name, path_buf);
+      get_lstat(path_buf, &buf);
+      pp.ino_len = MAX(pp.ino_len, get_intlen(buf.st_ino));
+      pp.hlink_len = MAX(pp.hlink_len, get_intlen(buf.st_nlink));
+      pp.size_len = MAX(pp.size_len, get_intlen(buf.st_size));
+      pp.uname_len = MAX(pp.uname_len, strlen(get_uname(buf.st_uid)));
+      pp.gname_len = MAX(pp.gname_len, strlen(get_gname(buf.st_gid)));
+      // printf("%d %d\n", )
+      pp.hasSpcPath = pp.hasSpcPath || hasSpcChr(nameList[idx]->d_name);
+    }
+  }
+
   // get_dirname(pathname, dname_buf); // current dir name
   if (level || multiple_inputs || R_flag) {
     if (!first) {
@@ -224,15 +247,18 @@ void printDir(char *pathname) {
   }
   level++;
 
+  // print entries
   for (int idx = 0; idx < entries; ++idx) {
     if (strcmp(nameList[idx]->d_name, ".") != 0 &&
         strcmp(nameList[idx]->d_name, "..") != 0 &&
         nameList[idx]->d_name[0] != '.') {
       get_path(pathname, nameList[idx]->d_name, path_buf);
       get_lstat(path_buf, &buf);
-      printEntry(&buf, nameList[idx]->d_name, path_buf);
+      printEntry(&buf, nameList[idx]->d_name, path_buf, &pp);
     }
   }
+
+  // depth-first & cleanup
   for (int idx = 0; idx < entries; ++idx) {
     if (strcmp(nameList[idx]->d_name, ".") != 0 &&
         strcmp(nameList[idx]->d_name, "..") != 0 &&
@@ -248,17 +274,20 @@ void printDir(char *pathname) {
   free(nameList);
 }
 
-void handle_input(char *pathname) {
-  stat_t buf;
-  char dirname_buf[1000];
-  get_dirname(pathname, dirname_buf);
-  get_stat(pathname, &buf);
-  if (S_ISDIR(buf.st_mode)) {
-    printDir(pathname);
-  } else
-    printEntry(&buf, dirname_buf, pathname);
-  first = false;
-}
+// void handle_input(char *pathname) {
+//   stat_t buf;
+//   char dirname_buf[1000];
+//   get_dirname(pathname, dirname_buf);
+//   get_stat(pathname, &buf);
+//   if (S_ISDIR(buf.st_mode)) {
+//     printDir(pathname);
+//   } else{
+//     PrintProfile pp;
+//     memset(&pp, 0, sizeof(pp));
+//     printEntry(&buf, dirname_buf, pathname, &pp);
+//   }
+//   first = false;
+// }
 
 void swap(int *a, int *b) {
   int temp = *b;
@@ -297,9 +326,24 @@ int main(int argc, char **argv) {
   }
   sort_input(argv, cnt_dir, dir);
   sort_input(argv, cnt_entry, entry);
+
+  PrintProfile pp;
+  memset(&pp, 0, sizeof(pp));
+
   for (int idx = 0; idx < cnt_entry; ++idx) {
     get_lstat(argv[entry[idx]], &buf);
-    printEntry(&buf, argv[entry[idx]], argv[entry[idx]]);
+    pp.ino_len = MAX(pp.ino_len, get_intlen(buf.st_ino));
+    pp.hlink_len = MAX(pp.hlink_len, get_intlen(buf.st_nlink));
+    pp.size_len = MAX(pp.size_len, get_intlen(buf.st_size));
+    pp.uname_len = MAX(pp.uname_len, strlen(get_uname(buf.st_uid)));
+    pp.gname_len = MAX(pp.gname_len, strlen(get_gname(buf.st_gid)));
+    pp.hasSpcPath = pp.hasSpcPath || hasSpcChr(argv[entry[idx]]);
+  }
+
+  for (int idx = 0; idx < cnt_entry; ++idx) {
+    get_lstat(argv[entry[idx]], &buf);
+
+    printEntry(&buf, argv[entry[idx]], argv[entry[idx]], &pp);
     first = false;
   }
   for (int idx = 0; idx < cnt_dir; ++idx) {
