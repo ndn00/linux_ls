@@ -218,11 +218,37 @@ void handle_input(char *pathname) {
   first = false;
 }
 
+void swap(int *a, int *b) {
+  int temp = *b;
+  *b = *a;
+  *a = temp;
+}
+
+void sort_input(char **argv, int arr_size, int *arr) {
+  for (int i = 0; i < arr_size - 1; ++i) 
+    for (int j = 0; j < arr_size - i - 1; ++j) 
+      if (strcmp(argv[arr[j]], argv[arr[j + 1]]) > 0) 
+        swap(&arr[j], &arr[j + 1]);
+}
+
 int main(int argc, char **argv) {
   handle_flags(argc, argv);
-  for (; f_idx < argc; ++f_idx) {
-    handle_input(argv[f_idx]);
-    level = 0;
+  stat_t buf;
+  int cnt_dir = 0, cnt_entry = 0;
+  for(; f_idx < argc; ++f_idx) {
+    get_lstat(argv[f_idx], &buf);
+    if (S_ISDIR(buf.st_mode)) ++cnt_dir;
+    else if (S_ISREG(buf.st_mode)) ++cnt_entry;
+    else if (S_ISLNK(buf.st_mode)) l_flag ? ++cnt_entry : ++cnt_dir;
+  }
+  int *dir = calloc(cnt_dir, sizeof(int));
+  int *entry = calloc(cnt_entry, sizeof(int));
+  cnt_dir = 0;
+  cnt_entry = 0;
+  for (int j = 0; j < argc; ++j) {
+      get_lstat(argv[j], &buf);
+      if (S_ISDIR(buf.st_mode) || (S_ISLNK(buf.st_mode) && !l_flag)) dir[cnt_dir++] = j;
+      else entry[cnt_entry++] = j; 
   }
 
   return 0;
