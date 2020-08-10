@@ -152,7 +152,7 @@ void printEntry(stat_t *stats, char *dirname, char *pathname,
 
 void handle_flags(int argc, char **argv) {
   for (f_idx = 1; f_idx < argc; ++f_idx) {
-    if (argv[f_idx][0] == '-') {  // handle flags
+    if (argv[f_idx][0] == '-' && strlen(argv[f_idx]) > 1) {  // handle flags
       for (int idx2 = 1; idx2 < strlen(argv[f_idx]); ++idx2) {
         if (argv[f_idx][idx2] == 'i') {
           i_flag = true;
@@ -238,7 +238,8 @@ void printDir(char *pathname) {
       pp.uname_len = MAX(pp.uname_len, strlen(get_uname(buf.st_uid)));
       pp.gname_len = MAX(pp.gname_len, strlen(get_gname(buf.st_gid)));
       // printf("%d %d\n", )
-      pp.hasSpcPath = pp.hasSpcPath || hasSpcChr(nameList[idx]->d_name);
+      pp.hasSpcPath = (l_flag || i_flag) &&
+                      (pp.hasSpcPath || hasSpcChr(nameList[idx]->d_name));
     }
   }
 
@@ -360,6 +361,11 @@ int main(int argc, char **argv) {
   PrintProfile pp;
   memset(&pp, 0, sizeof(pp));
 
+  // handle default case
+  if (!cnt_entry && !cnt_dir && f_idx >= argc) {
+    if (get_stat(".", &buf)) printDir(".");
+  }
+
   for (int idx = 0; idx < cnt_entry; ++idx) {
     get_lstat(argv[entry[idx]], &buf);
     pp.ino_len = MAX(pp.ino_len, get_intlen(buf.st_ino));
@@ -367,7 +373,8 @@ int main(int argc, char **argv) {
     pp.size_len = MAX(pp.size_len, get_intlen(buf.st_size));
     pp.uname_len = MAX(pp.uname_len, strlen(get_uname(buf.st_uid)));
     pp.gname_len = MAX(pp.gname_len, strlen(get_gname(buf.st_gid)));
-    pp.hasSpcPath = pp.hasSpcPath || hasSpcChr(argv[entry[idx]]);
+    pp.hasSpcPath =
+        (l_flag || i_flag) && (pp.hasSpcPath || hasSpcChr(argv[entry[idx]]));
   }
 
   for (int idx = 0; idx < cnt_entry; ++idx) {
