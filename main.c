@@ -21,6 +21,7 @@ bool i_flag = false;
 bool l_flag = false;
 bool R_flag = false;
 int f_idx = 1;
+bool multiple_inputs = false;
 bool first = true;
 int level = 0;
 
@@ -114,6 +115,9 @@ void handle_flags(int argc, char **argv) {
         }
       }
     } else {  // f_idx mark begining index of files/directories
+      if (argc - f_idx > 1) {
+        multiple_inputs = true;
+      }
       return;
     }
   }
@@ -157,8 +161,8 @@ void printDir(char *pathname) {
   entries = scandir(pathname, &nameList, NULL, alphasort);
 
   // get_dirname(pathname, dname_buf); // current dir name
-  if (level ? true : R_flag ? true : false) {
-    if (!level) {
+  if (level || multiple_inputs || R_flag) {
+    if (!first) {
       printf("\n");
     } else {
       first = true;
@@ -198,6 +202,7 @@ void handle_input(char *pathname) {
     printDir(pathname);
   } else
     printEntry(buf, dirname_buf);
+  first = false;
 }
 
 int main(int argc, char **argv) {
