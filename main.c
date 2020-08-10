@@ -175,15 +175,23 @@ void handle_flags(int argc, char **argv) {
   }
 }
 
-void get_stat(char *pathname, stat_t *pbuf) {
+bool get_stat(char *pathname, stat_t *pbuf) {
   if (stat(pathname, pbuf) != 0) {
     // handle error;
+    printf("myls: cannot access \'%s\': No such file or directory\n", pathname);
+    pbuf = NULL;
+    return false;
   }
+  return true;
 }
-void get_lstat(char *pathname, stat_t *pbuf) {
+bool get_lstat(char *pathname, stat_t *pbuf) {
   if (lstat(pathname, pbuf) != 0) {
     // handle error;
+    printf("myls: cannot access \'%s\': No such file or directory\n", pathname);
+    pbuf = NULL;
+    return false;
   }
+  return true;
 }
 void get_dirname(char *pathname, char *dirname) {
   char *ptr = strrchr(pathname, '/');
@@ -308,13 +316,14 @@ int main(int argc, char **argv) {
   stat_t buf;
   int cnt_dir = 0, cnt_entry = 0;
   for (int idx = f_idx; idx < argc; ++idx) {
-    get_lstat(argv[idx], &buf);
-    if (S_ISDIR(buf.st_mode))
-      ++cnt_dir;
-    else if (S_ISREG(buf.st_mode))
-      ++cnt_entry;
-    else if (S_ISLNK(buf.st_mode))
-      l_flag ? ++cnt_entry : ++cnt_dir;
+    if (get_lstat(argv[idx], &buf)) {
+      if (S_ISDIR(buf.st_mode))
+        ++cnt_dir;
+      else if (S_ISREG(buf.st_mode))
+        ++cnt_entry;
+      else if (S_ISLNK(buf.st_mode))
+        l_flag ? ++cnt_entry : ++cnt_dir;
+    }
   }
 
   int *dir = calloc(cnt_dir, sizeof(int));
@@ -350,8 +359,8 @@ int main(int argc, char **argv) {
   }
   free(entry);
   for (int idx = 0; idx < cnt_dir; ++idx) {
-    get_stat(argv[dir[idx]], &buf);
-    printDir(argv[dir[idx]]);
+    if (get_stat(argv[dir[idx]], &buf))
+      printDir(argv[dir[idx]]);
   }
   free(dir);
 
