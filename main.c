@@ -26,6 +26,23 @@ bool multiple_inputs = false;
 bool first = true;
 int level = 0;
 
+void printPath(char *pathname) {
+  bool spc_flag = false;
+  char spcchr[7] = {' ', '!', '$', '^', '&', '(', ')'};
+  for (int idx = 0; idx < 7; ++idx) {
+    if (strchr(pathname, spcchr[idx]) != NULL) {
+      spc_flag = true;
+    }
+  }
+  if (spc_flag) {
+    printf("\'");
+  }
+  printf("%s", pathname);
+  if (spc_flag) {
+    printf("\'");
+  }
+}
+
 void getAndPrintGroup(const gid_t grpNum) {
   struct group *grp = getgrgid(grpNum);
 
@@ -98,7 +115,8 @@ void printEntry(stat_t stats, char *dirname, char *pathname) {
     printf("%ld\t", size);
     getAndPrintTime(time);
   }
-  printf("%s", dirname);
+  // printf("%s", dirname);
+  printPath(dirname);
   if (l_flag && S_ISLNK(stats.st_mode)) {
     char dest_buf[1000];
     ssize_t len = readlink(pathname, dest_buf, sizeof(dest_buf) - 1);
@@ -108,7 +126,8 @@ void printEntry(stat_t stats, char *dirname, char *pathname) {
     } else {
       /* handle error condition */
     }
-    printf(" -> %s", dest_buf);
+    printf(" -> ");
+    printPath(dest_buf);
   }
   printf("\n");
 }
@@ -178,15 +197,20 @@ void printDir(char *pathname) {
     if (!first) {
       printf("\n");
     } else {
-      first = true;
+      first = false;
     }
-    printf("%s:\n", pathname);
+    // printf("\n");
+
+    // printf("%s:\n", pathname);
+    printPath(pathname);
+    printf(":\n");
   }
   level++;
 
   for (int idx = 0; idx < entries; ++idx) {
     if (strcmp(nameList[idx]->d_name, ".") != 0 &&
-        strcmp(nameList[idx]->d_name, "..") != 0) {
+        strcmp(nameList[idx]->d_name, "..") != 0 &&
+        nameList[idx]->d_name[0] != '.') {
       get_path(pathname, nameList[idx]->d_name, path_buf);
       get_lstat(path_buf, &buf);
       printEntry(buf, nameList[idx]->d_name, path_buf);
@@ -194,7 +218,8 @@ void printDir(char *pathname) {
   }
   for (int idx = 0; idx < entries; ++idx) {
     if (strcmp(nameList[idx]->d_name, ".") != 0 &&
-        strcmp(nameList[idx]->d_name, "..") != 0) {
+        strcmp(nameList[idx]->d_name, "..") != 0 &&
+        nameList[idx]->d_name[0] != '.') {
       get_path(pathname, nameList[idx]->d_name, path_buf);
       get_lstat(path_buf, &buf);
       if (R_flag && S_ISDIR(buf.st_mode)) {
@@ -225,9 +250,9 @@ void swap(int *a, int *b) {
 }
 
 void sort_input(char **argv, int arr_size, int *arr) {
-  for (int i = 0; i < arr_size - 1; ++i) 
-    for (int j = 0; j < arr_size - i - 1; ++j) 
-      if (strcmp(argv[arr[j]], argv[arr[j + 1]]) > 0) 
+  for (int i = 0; i < arr_size - 1; ++i)
+    for (int j = 0; j < arr_size - i - 1; ++j)
+      if (strcmp(argv[arr[j]], argv[arr[j + 1]]) > 0)
         swap(&arr[j], &arr[j + 1]);
 }
 
@@ -235,23 +260,35 @@ int main(int argc, char **argv) {
   handle_flags(argc, argv);
   stat_t buf;
   int cnt_dir = 0, cnt_entry = 0;
-  for(; f_idx < argc; ++f_idx) {
-    get_lstat(argv[f_idx], &buf);
-    if (S_ISDIR(buf.st_mode)) ++cnt_dir;
-    else if (S_ISREG(buf.st_mode)) ++cnt_entry;
-    else if (S_ISLNK(buf.st_mode)) l_flag ? ++cnt_entry : ++cnt_dir;
+  for (int idx = f_idx; idx < argc; ++idx) {
+    get_lstat(argv[idx], &buf);
+    if (S_ISDIR(buf.st_mode))
+      ++cnt_dir;
+    else if (S_ISREG(buf.st_mode))
+      ++cnt_entry;
+    else if (S_ISLNK(buf.st_mode))
+      l_flag ? ++cnt_entry : ++cnt_dir;
   }
   int *dir = calloc(cnt_dir, sizeof(int));
   int *entry = calloc(cnt_entry, sizeof(int));
-  int i = 0; 
-  int j = 0;
-  for (int k = 0; j < argc; ++k) {
-      get_lstat(argv[k], &buf);
-      if (S_ISDIR(buf.st_mode) || (S_ISLNK(buf.st_mode) && !l_flag)) dir[i++] = k;
-      else entry[j++] = k; 
+  for (int k = f_idx, cnt_dir = 0, cnt_entry = 0; k < argc; ++k) {
+    get_lstat(argv[k], &buf);
+    if (S_ISDIR(buf.st_mode) || (S_ISLNK(buf.st_mode) && !l_flag))
+      dir[cnt_dir++] = k;
+    else
+      entry[cnt_entry++] = k;
   }
   sort_input(argv, cnt_dir, dir);
   sort_input(argv, cnt_entry, entry);
+  for (int idx = 0; idx < cnt_entry; ++idx) {
+    get_lstat(argv[entry[idx]], &buf);
+    printEntry(buf, argv[entry[idx]], argv[entry[idx]]);
+    first = false;
+  }
+  for (int idx = 0; idx < cnt_dir; ++idx) {
+    get_stat(argv[dir[idx]], &buf);
+    printDir(argv[dir[idx]]);
+  }
 
   return 0;
 }
