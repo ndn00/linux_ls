@@ -304,6 +304,7 @@ void sort_input(char **argv, int arr_size, int *arr) {
 
 int main(int argc, char **argv) {
   handle_flags(argc, argv);
+
   stat_t buf;
   int cnt_dir = 0, cnt_entry = 0;
   for (int idx = f_idx; idx < argc; ++idx) {
@@ -315,6 +316,7 @@ int main(int argc, char **argv) {
     else if (S_ISLNK(buf.st_mode))
       l_flag ? ++cnt_entry : ++cnt_dir;
   }
+
   int *dir = calloc(cnt_dir, sizeof(int));
   int *entry = calloc(cnt_entry, sizeof(int));
   for (int k = f_idx, cnt_dir = 0, cnt_entry = 0; k < argc; ++k) {
@@ -346,10 +348,12 @@ int main(int argc, char **argv) {
     printEntry(&buf, argv[entry[idx]], argv[entry[idx]], &pp);
     first = false;
   }
+  free(entry);
   for (int idx = 0; idx < cnt_dir; ++idx) {
     get_stat(argv[dir[idx]], &buf);
     printDir(argv[dir[idx]]);
   }
+  free(dir);
 
   return 0;
 }
