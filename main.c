@@ -13,7 +13,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define SIZE_OF_DATE_AND_TIME 16
+#define SIZE_OF_DATE_AND_TIME 18
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 typedef struct dirent dirent_t;
@@ -116,7 +116,8 @@ void getAndPrintFileMode(const mode_t mode) {
 
 void getAndPrintTime(time_t time) {
   char dateAndTime[SIZE_OF_DATE_AND_TIME];
-  strftime(dateAndTime, sizeof(dateAndTime), "%b %e %H:%M", localtime(&time));
+  strftime(dateAndTime, sizeof(dateAndTime), "%b %e %Y %H:%M",
+           localtime(&time));
   printf("%s ", dateAndTime);
 }
 
